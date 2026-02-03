@@ -1,43 +1,54 @@
 // Service Worker for PWA functionality
+const CACHE_NAME = 'ourdm-v2'; // Version badal diya taaki purana cache clear ho jaye
 
-const CACHE_NAME = 'ourdm-v1';
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/icon-192x192.png',
+  '/icon-512x512.png'
 ];
 
 // Install event
 self.addEventListener('install', (event) => {
+  self.skipWaiting(); // Naye version ko turant activate karne ke liye
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(urlsToCache))
   );
 });
 
-// Fetch event
+// Fetch event (Network-First Strategy)
 self.addEventListener('fetch', (event) => {
+  // Auth aur API calls ko cache mat karo
+  if (event.request.url.includes('supabase.co')) {
+    return fetch(event.request);
+  }
+
   event.respondWith(
-    caches.match(event.request)
+    fetch(event.request)
       .then((response) => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      }
-    )
+        // Agar network sahi hai, toh cache update karo aur response bhejo
+        const resClone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, resClone);
+        });
+        return response;
+      })
+      .catch(() => {
+        // Agar network fail hua (offline), tabhi cache se uthao
+        return caches.match(event.request);
+      })
   );
 });
 
-// Activate event
+// Activate event (Purane cache ko saaf karne ke liye)
 self.addEventListener('activate', (event) => {
-  const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
+          if (cacheName !== CACHE_NAME) {
             return caches.delete(cacheName);
           }
         })
@@ -46,34 +57,19 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Push notification event
+// Push & Notification click (Aapka logic sahi hai)
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
-  const title = data.title || 'OurDM Notification';
   const options = {
-    body: data.body || 'You have a new notification',
+    body: data.body || 'New message on OurDM',
     icon: '/icon-192x192.png',
     badge: '/icon-192x192.png',
     vibrate: [200, 100, 200],
-    data: data,
-    actions: [
-      { action: 'open', title: 'Open' },
-      { action: 'close', title: 'Close' }
-    ]
   };
-
-  event.waitUntil(
-    self.registration.showNotification(title, options)
-  );
+  event.waitUntil(self.registration.showNotification(data.title || 'OurDM', options));
 });
 
-// Notification click event
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-
-  if (event.action === 'open') {
-    event.waitUntil(
-      clients.openWindow('/')
-    );
-  }
+  event.waitUntil(clients.openWindow('/'));
 });
