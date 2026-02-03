@@ -14,7 +14,7 @@ import StoriesPage from './pages/StoriesPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 
-// Loading spinner component
+// Loading spinner component (Full Screen)
 function LoadingScreen() {
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center">
@@ -29,14 +29,14 @@ function LoadingScreen() {
   );
 }
 
-// Protected Route wrapper
+// 🛡️ Protected Route: Logged-in users only
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
+  // Sabse pehle loading check karo, bina user check kiye
+  if (loading) return <LoadingScreen />;
 
+  // Agar loading khatam ho gayi aur user nahi mila, tab hi login pe bhejo
   if (!user) {
     return <Navigate to="/login" replace />;
   }
@@ -44,14 +44,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Public Route wrapper (redirect if already logged in)
+// 🔓 Public Route: Redirect to home if already logged in
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
+  // Refresh par loading screen dikhao taaki redirect loop na bane
+  if (loading) return <LoadingScreen />;
 
+  // Agar user already logged in hai, toh login page dikhane ki bajaye home pe bhej do
   if (user) {
     return <Navigate to="/" replace />;
   }
@@ -59,11 +59,11 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Main App with routes
+// 🗺️ Main App Routes logic
 function AppRoutes() {
   return (
     <Routes>
-      {/* Public routes */}
+      {/* Login Route */}
       <Route
         path="/login"
         element={
@@ -73,7 +73,7 @@ function AppRoutes() {
         }
       />
 
-      {/* Protected routes */}
+      {/* Home Route */}
       <Route
         path="/"
         element={
@@ -82,6 +82,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* Chat Route */}
       <Route
         path="/chat/:chatId"
         element={
@@ -90,22 +92,37 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* 🟢 Video Call Route (Fixed path for your callId) */}
       <Route
-        path="/video-call/:oderId"
+        path="/call/:callId"
         element={
           <ProtectedRoute>
             <VideoCallPage />
           </ProtectedRoute>
         }
       />
+      
+      {/* 🟢 Compatibility Routes (for audio-call or video-call paths) */}
       <Route
-        path="/audio-call/:oderId"
+        path="/video-call/:callId"
+        element={
+          <ProtectedRoute>
+            <VideoCallPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/audio-call/:callId"
         element={
           <ProtectedRoute>
             <AudioCallPage />
           </ProtectedRoute>
         }
       />
+
+      {/* Stories & Profile */}
       <Route
         path="/stories"
         element={
@@ -131,13 +148,13 @@ function AppRoutes() {
         }
       />
 
-      {/* Fallback */}
+      {/* 404 Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
 
-// App with all providers
+// 🚀 Main Root Component
 export default function App() {
   return (
     <BrowserRouter>
